@@ -3,28 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MovieBox Pro | Free Movie & Anime Streaming</title>
+    <title>MovieBox Pro | Streaming</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --primary: #ff3d71;
-            --bg: #0d0f17;
-            --card-bg: rgba(255, 255, 255, 0.05);
-            --text: #ffffff;
-        }
+        :root { --primary: #ff3d71; --bg: #0d0f17; --card-bg: rgba(255, 255, 255, 0.05); --text: #ffffff; }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
         body { background: var(--bg); color: var(--text); padding-bottom: 50px; }
-        
         header { display: flex; justify-content: space-between; align-items: center; padding: 20px 5%; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100; }
         .logo { font-size: 1.8rem; font-weight: 800; color: var(--primary); }
         .search-box { display: flex; gap: 10px; width: 50%; max-width: 400px; }
         .search-box input { width: 100%; padding: 10px 15px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2); background: #1a1d29; color: white; outline: none; }
         .search-box button { padding: 10px 20px; border-radius: 20px; border: none; background: var(--primary); color: white; font-weight: 600; cursor: pointer; }
-        
         #player-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 200; justify-content: center; align-items: center; flex-direction: column; }
         #player-modal video { width: 85%; max-width: 900px; border-radius: 12px; box-shadow: 0 0 30px rgba(255,61,113,0.3); }
         .close-btn { position: absolute; top: 20px; right: 30px; font-size: 2rem; color: white; cursor: pointer; }
-
         .container { padding: 30px 5%; }
         h2 { margin-bottom: 20px; font-weight: 600; }
         .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 20px; }
@@ -41,7 +33,7 @@
     <header>
         <div class="logo">MovieBox Pro</div>
         <div class="search-box">
-            <input type="text" id="searchInput" placeholder="Search movies, anime, Hindi dub..." onkeydown="if(event.key==='Enter') searchMovies()">
+            <input type="text" id="searchInput" placeholder="Search movies, anime..." onkeydown="if(event.key==='Enter') searchMovies()">
             <button onclick="searchMovies()">Search</button>
         </div>
     </header>
@@ -60,24 +52,16 @@
     </div>
 
     <script>
-        const API_BASE = "https://my-movie-nett.vercel.app";
+        const API_BASE = window.location.origin;
+
         async function loadHome() {
             try {
-                let items = [];
                 const res = await fetch(`${API_BASE}/search?q=a`);
                 const data = await res.json();
-                items = data.data?.results || data.data?.items || data.data?.list || [];
-
-                if (!items || items.length === 0) {
-                    const homeRes = await fetch(`${API_BASE}/home`);
-                    const homeData = await homeRes.json();
-                    items = homeData.data?.operatingList?.flatMap(b => b.bannerList || b.subjectList || []) || [];
-                }
-
-                displayGrid(items);
+                parseAndDisplay(data);
             } catch (err) {
                 console.error(err);
-                document.getElementById('movieGrid').innerHTML = "<p>Error loading content. Please try searching above!</p>";
+                document.getElementById('movieGrid').innerHTML = "<p>Error loading content.</p>";
             }
         }
 
@@ -91,12 +75,24 @@
             try {
                 const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}`);
                 const data = await res.json();
-                const results = data.data?.results || data.data?.items || data.data?.list || [];
-                displayGrid(results);
+                parseAndDisplay(data);
             } catch (err) {
                 console.error(err);
                 document.getElementById('movieGrid').innerHTML = "<p>Search failed!</p>";
             }
+        }
+
+        function parseAndDisplay(data) {
+            let items = [];
+            
+            // Check all common response keys from backend API
+            if (data?.data?.results) items = data.data.results;
+            else if (data?.data?.items) items = data.data.items;
+            else if (data?.data?.list) items = data.data.list;
+            else if (data?.data?.subjectList) items = data.data.subjectList;
+            else if (Array.isArray(data?.data)) items = data.data;
+
+            displayGrid(items);
         }
 
         function displayGrid(items) {
@@ -110,7 +106,7 @@
 
             items.forEach(item => {
                 const title = item.title || item.name || item.subjectName || "Untitled";
-                const poster = item.cover?.url || item.image || item.poster || "https://via.placeholder.com/160x240";
+                const poster = item.cover?.url || item.cover || item.image || item.poster || "https://via.placeholder.com/160x240";
                 const slug = item.detailPath || item.slug || item.id || item.subjectId;
                 const tag = item.corner || item.lang || "";
 
@@ -146,7 +142,7 @@
                     player.src = videoUrl;
                     modal.style.display = "flex";
                 } else {
-                    alert("Trailer / Video stream preview available nahi hai is title ke liye.");
+                    alert("Is movie ke liye trailer/video link available nahi hai.");
                 }
             } catch (err) {
                 alert("Error loading video details!");
