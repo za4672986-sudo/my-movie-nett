@@ -14,7 +14,152 @@
         .search-box { display: flex; gap: 10px; width: 50%; max-width: 400px; }
         .search-box input { width: 100%; padding: 10px 15px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2); background: #1a1d29; color: white; outline: none; }
         .search-box button { padding: 10px 20px; border-radius: 20px; border: none; background: var(--primary); color: white; font-weight: 600; cursor: pointer; }
+        #player-modal { display: none; positi<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MovieBox Pro | Direct Stream</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #ff3d71; --bg: #0d0f17; --card-bg: rgba(255, 255, 255, 0.05); --text: #ffffff; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+        body { background: var(--bg); color: var(--text); padding-bottom: 50px; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 20px 5%; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100; }
+        .logo { font-size: 1.8rem; font-weight: 800; color: var(--primary); }
+        .search-box { display: flex; gap: 10px; width: 50%; max-width: 400px; }
+        .search-box input { width: 100%; padding: 10px 15px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2); background: #1a1d29; color: white; outline: none; }
+        .search-box button { padding: 10px 20px; border-radius: 20px; border: none; background: var(--primary); color: white; font-weight: 600; cursor: pointer; }
         #player-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 200; justify-content: center; align-items: center; flex-direction: column; }
+        #player-modal video { width: 85%; max-width: 900px; border-radius: 12px; box-shadow: 0 0 30px rgba(255,61,113,0.3); }
+        .close-btn { position: absolute; top: 20px; right: 30px; font-size: 2rem; color: white; cursor: pointer; }
+        .container { padding: 30px 5%; }
+        h2 { margin-bottom: 20px; font-weight: 600; }
+        .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 20px; }
+        .movie-card { background: var(--card-bg); border-radius: 12px; overflow: hidden; cursor: pointer; transition: transform 0.3s ease; position: relative; }
+        .movie-card:hover { transform: translateY(-8px); }
+        .movie-card img { width: 100%; height: 240px; object-fit: cover; }
+        .movie-info { padding: 10px; }
+        .movie-title { font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .badge { position: absolute; top: 8px; left: 8px; background: var(--primary); padding: 3px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">MovieBox Pro</div>
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search movies, anime, Hindi dub..." onkeydown="if(event.key==='Enter') searchMovies()">
+            <button onclick="searchMovies()">Search</button>
+        </div>
+    </header>
+
+    <div id="player-modal">
+        <span class="close-btn" onclick="closePlayer()">&times;</span>
+        <h3 id="playing-title" style="margin-bottom: 15px;"></h3>
+        <video id="videoPlayer" controls autoplay></video>
+    </div>
+
+    <div class="container">
+        <h2 id="section-title">Trending Content</h2>
+        <div class="movie-grid" id="movieGrid">
+            <p>Loading catalog...</p>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = "https://h5-api.aoneroom.com/wefeed-h5api-bff";
+
+        async function loadHome() {
+            searchMovies("a");
+        }
+
+        async function searchMovies(customQuery = null) {
+            const query = customQuery || document.getElementById('searchInput').value.trim();
+            if (!query) return;
+
+            if (!customQuery) {
+                document.getElementById('section-title').innerText = `Search Results for "${query}"`;
+            }
+            document.getElementById('movieGrid').innerHTML = "<p>Searching...</p>";
+
+            try {
+                const res = await fetch(`${API_BASE}/search/suggest?keyword=${encodeURIComponent(query)}&host=moviebox.ph`);
+                const data = await res.json();
+                const results = data.data?.list || data.data?.results || data.data?.items || [];
+                displayGrid(results);
+            } catch (err) {
+                console.error(err);
+                document.getElementById('movieGrid').innerHTML = "<p>Search failed! Cors error, please refresh.</p>";
+            }
+        }
+
+        function displayGrid(items) {
+            const grid = document.getElementById('movieGrid');
+            grid.innerHTML = "";
+
+            if (!items || items.length === 0) {
+                grid.innerHTML = "<p>No content found.</p>";
+                return;
+            }
+
+            items.forEach(item => {
+                const title = item.title || item.name || item.subjectName || "Untitled";
+                const poster = item.cover?.url || item.cover || item.image || "https://via.placeholder.com/160x240";
+                const slug = item.detailPath || item.slug || item.id || item.subjectId;
+                const tag = item.corner || item.lang || "";
+
+                if (!slug) return;
+
+                const card = document.createElement('div');
+                card.className = 'movie-card';
+                card.onclick = () => playMovie(slug, title);
+
+                card.innerHTML = `
+                    ${tag ? `<div class="badge">${tag}</div>` : ''}
+                    <img src="${poster}" alt="${title}">
+                    <div class="movie-info">
+                        <div class="movie-title">${title}</div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        async function playMovie(slug, title) {
+            try {
+                const modal = document.getElementById('player-modal');
+                const player = document.getElementById('videoPlayer');
+                document.getElementById('playing-title').innerText = title;
+
+                const res = await fetch(`${API_BASE}/subject/detail?detailPath=${slug}&host=moviebox.ph`);
+                const data = await res.json();
+
+                let videoUrl = data.data?.subject?.trailer?.videoAddress?.url;
+
+                if (videoUrl) {
+                    player.src = videoUrl;
+                    modal.style.display = "flex";
+                } else {
+                    alert("Is title ke liye streaming link load nahi ho saka.");
+                }
+            } catch (err) {
+                alert("Error loading video!");
+            }
+        }
+
+        function closePlayer() {
+            const modal = document.getElementById('player-modal');
+            const player = document.getElementById('videoPlayer');
+            player.pause();
+            player.src = "";
+            modal.style.display = "none";
+        }
+
+        loadHome();
+    </script>
+</body>
+</html>on: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 200; justify-content: center; align-items: center; flex-direction: column; }
         #player-modal video { width: 85%; max-width: 900px; border-radius: 12px; }
         .close-btn { position: absolute; top: 20px; right: 30px; font-size: 2rem; color: white; cursor: pointer; }
         .container { padding: 30px 5%; }
