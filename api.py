@@ -553,4 +553,4 @@ async def get_captions(subject_id: str, detail_path: str, se: int = 1, ep: int =
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("newapi:app", host="0.0.0.0", port=8000, reload=True)
+  uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
