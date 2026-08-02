@@ -55,24 +55,7 @@
     </div>
 
     <script>
-        async function fetchWithProxy(url) {
-            const proxies = [
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-                `https://corsproxy.io/?${encodeURIComponent(url)}`
-            ];
-            for (let proxy of proxies) {
-                try {
-                    const res = await fetch(proxy);
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (data) return data;
-                    }
-                } catch (e) {
-                    console.warn("Proxy failed, trying next...", proxy);
-                }
-            }
-            throw new Error("All proxies failed");
-        }
+        const API_BASE = window.location.origin;
 
         async function loadHome() {
             searchMovies("attack");
@@ -85,17 +68,20 @@
             if (!customQuery) {
                 document.getElementById('section-title').innerText = `Search Results for "${query}"`;
             }
-            document.getElementById('movieGrid').innerHTML = "<p>Searching catalog...</p>";
+            document.getElementById('movieGrid').innerHTML = "<p>Searching...</p>";
 
             try {
-                const targetUrl = `https://h5-api.aoneroom.com/wefeed-h5api-bff/search/suggest?keyword=${encodeURIComponent(query)}&host=moviebox.ph`;
-                const data = await fetchWithProxy(targetUrl);
-                
-                const results = data.data?.list || data.data?.results || data.data?.items || data.data?.subjectList || [];
+                const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}`);
+                const data = await res.json();
+
+                let results = [];
+                if (data.data) {
+                    results = data.data.list || data.data.results || data.data.items || data.data.subjectList || (Array.isArray(data.data) ? data.data : []);
+                }
                 displayGrid(results);
             } catch (err) {
                 console.error(err);
-                document.getElementById('movieGrid').innerHTML = "<p>Unable to load results. Please try refreshing the page.</p>";
+                document.getElementById('movieGrid').innerHTML = "<p>Search failed! Please try again.</p>";
             }
         }
 
@@ -137,8 +123,8 @@
                 const player = document.getElementById('videoPlayer');
                 document.getElementById('playing-title').innerText = title;
 
-                const targetUrl = `https://h5-api.aoneroom.com/wefeed-h5api-bff/subject/detail?detailPath=${slug}&host=moviebox.ph`;
-                const data = await fetchWithProxy(targetUrl);
+                const res = await fetch(`${API_BASE}/detail/${slug}`);
+                const data = await res.json();
 
                 let videoUrl = data.data?.subject?.trailer?.videoAddress?.url;
 
