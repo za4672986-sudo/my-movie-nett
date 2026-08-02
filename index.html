@@ -15,19 +15,16 @@
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
         body { background: var(--bg); color: var(--text); padding-bottom: 50px; }
         
-        /* Header & Search */
-        header { display: flex; justify-content: space-between; align-items: center; padding: 20px 5%; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); sticky: top: 0; z-index: 100; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 20px 5%; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100; }
         .logo { font-size: 1.8rem; font-weight: 800; color: var(--primary); }
         .search-box { display: flex; gap: 10px; width: 50%; max-width: 400px; }
         .search-box input { width: 100%; padding: 10px 15px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2); background: #1a1d29; color: white; outline: none; }
         .search-box button { padding: 10px 20px; border-radius: 20px; border: none; background: var(--primary); color: white; font-weight: 600; cursor: pointer; }
         
-        /* Video Player Modal */
         #player-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 200; justify-content: center; align-items: center; flex-direction: column; }
         #player-modal video { width: 85%; max-width: 900px; border-radius: 12px; box-shadow: 0 0 30px rgba(255,61,113,0.3); }
         .close-btn { position: absolute; top: 20px; right: 30px; font-size: 2rem; color: white; cursor: pointer; }
 
-        /* Movie Grid */
         .container { padding: 30px 5%; }
         h2 { margin-bottom: 20px; font-weight: 600; }
         .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 20px; }
@@ -44,12 +41,11 @@
     <header>
         <div class="logo">MovieBox Pro</div>
         <div class="search-box">
-            <input type="text" id="searchInput" placeholder="Search movies, anime, Hindi dub...">
+            <input type="text" id="searchInput" placeholder="Search movies, anime, Hindi dub..." onkeydown="if(event.key==='Enter') searchMovies()">
             <button onclick="searchMovies()">Search</button>
         </div>
     </header>
 
-    <!-- Player Popup Modal -->
     <div id="player-modal">
         <span class="close-btn" onclick="closePlayer()">&times;</span>
         <h3 id="playing-title" style="margin-bottom: 15px;"></h3>
@@ -64,30 +60,28 @@
     </div>
 
     <script>
-        const API_BASE = "https://my-movie-nett.vercel.app";
+        const API_BASE = window.location.origin;
 
-        // Load Default Home Banners
         async function loadHome() {
             try {
-                const res = await fetch(`${API_BASE}/home`);
-                const data = await res.json();
-                
-                // Extract cards from home feed response
                 let items = [];
-                if (data.data && data.data.items) {
-                    items = data.data.items;
-                } else if (data.data && data.data.operatingList) {
-                    items = data.data.operatingList.flatMap(b => b.bannerList || []);
+                const res = await fetch(`${API_BASE}/search?q=a`);
+                const data = await res.json();
+                items = data.data?.results || data.data?.items || data.data?.list || [];
+
+                if (!items || items.length === 0) {
+                    const homeRes = await fetch(`${API_BASE}/home`);
+                    const homeData = await homeRes.json();
+                    items = homeData.data?.operatingList?.flatMap(b => b.bannerList || b.subjectList || []) || [];
                 }
 
                 displayGrid(items);
             } catch (err) {
                 console.error(err);
-                document.getElementById('movieGrid').innerHTML = "<p>Error loading movies!</p>";
+                document.getElementById('movieGrid').innerHTML = "<p>Error loading content. Please try searching above!</p>";
             }
         }
 
-        // Search Movies
         async function searchMovies() {
             const query = document.getElementById('searchInput').value.trim();
             if (!query) return;
@@ -98,7 +92,7 @@
             try {
                 const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}`);
                 const data = await res.json();
-                const results = data.data ? (data.data.results || data.data.items || []) : [];
+                const results = data.data?.results || data.data?.items || data.data?.list || [];
                 displayGrid(results);
             } catch (err) {
                 console.error(err);
@@ -106,7 +100,6 @@
             }
         }
 
-        // Display Cards in UI
         function displayGrid(items) {
             const grid = document.getElementById('movieGrid');
             grid.innerHTML = "";
@@ -117,10 +110,12 @@
             }
 
             items.forEach(item => {
-                const title = item.title || item.name || "Untitled";
+                const title = item.title || item.name || item.subjectName || "Untitled";
                 const poster = item.cover?.url || item.image || item.poster || "https://via.placeholder.com/160x240";
-                const slug = item.detailPath || item.slug || item.id;
+                const slug = item.detailPath || item.slug || item.id || item.subjectId;
                 const tag = item.corner || item.lang || "";
+
+                if (!slug) return;
 
                 const card = document.createElement('div');
                 card.className = 'movie-card';
@@ -137,31 +132,25 @@
             });
         }
 
-        // Fetch Stream Link & Play
         async function playMovie(slug, title) {
             try {
                 const modal = document.getElementById('player-modal');
                 const player = document.getElementById('videoPlayer');
                 document.getElementById('playing-title').innerText = title;
 
-                // Call Detail Endpoint
                 const res = await fetch(`${API_BASE}/detail/${slug}`);
                 const data = await res.json();
 
-                // Get Video Address (Trailer or Stream)
-                let videoUrl = "";
-                if (data.data && data.data.subject && data.data.subject.trailer) {
-                    videoUrl = data.data.subject.trailer.videoAddress.url;
-                }
+                let videoUrl = data.data?.subject?.trailer?.videoAddress?.url;
 
                 if (videoUrl) {
                     player.src = videoUrl;
                     modal.style.display = "flex";
                 } else {
-                    alert("Video stream not available for this title!");
+                    alert("Trailer / Video stream preview available nahi hai is title ke liye.");
                 }
             } catch (err) {
-                alert("Error loading video!");
+                alert("Error loading video details!");
                 console.error(err);
             }
         }
@@ -174,36 +163,7 @@
             modal.style.display = "none";
         }
 
-        // Initialize Home feed on load
-       // Load Default Home Banners
-        async function loadHome() {
-            try {
-                const res = await fetch(`${API_BASE}/home`);
-                const data = await res.json();
-                
-                let items = [];
-                if (data.data) {
-                    // Extract items from operateList or banners
-                    if (data.data.operateList) {
-                        data.data.operateList.forEach(op => {
-                            if (op.bannerList) items.push(...op.bannerList);
-                            if (op.subjectList) items.push(...op.subjectList);
-                        });
-                    } else if (data.data.items) {
-                        items = data.data.items;
-                    }
-                }
-
-                if (items.length === 0) {
-                    // Fallback to auto search if home structure is complex
-                    const searchRes = await fetch(`${API_BASE}/search?q=a`);
-                    const searchData = await searchRes.json();
-                    items = searchData.data?.results || searchData.data?.items || [];
-                }
-
-                displayGrid(items);
-            } catch (err) {
-                console.error(err);
-                document.getElementById('movieGrid').innerHTML = "<p>Error loading content!</p>";
-            }
-        }
+        loadHome();
+    </script>
+</body>
+</html>
