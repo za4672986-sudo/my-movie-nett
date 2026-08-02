@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MovieBox Pro | Free Movie Streaming</title>
+    <title>MovieBox Pro | Direct Stream</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #ff3d71; --bg: #0d0f17; --card-bg: rgba(255, 255, 255, 0.05); --text: #ffffff; }
@@ -55,7 +55,24 @@
     </div>
 
     <script>
-        const API_BASE = window.location.origin;
+        async function fetchWithProxy(url) {
+            const proxies = [
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                `https://corsproxy.io/?${encodeURIComponent(url)}`
+            ];
+            for (let proxy of proxies) {
+                try {
+                    const res = await fetch(proxy);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data) return data;
+                    }
+                } catch (e) {
+                    console.warn("Proxy failed, trying next...", proxy);
+                }
+            }
+            throw new Error("All proxies failed");
+        }
 
         async function loadHome() {
             searchMovies("attack");
@@ -68,18 +85,17 @@
             if (!customQuery) {
                 document.getElementById('section-title').innerText = `Search Results for "${query}"`;
             }
-            document.getElementById('movieGrid').innerHTML = "<p>Searching...</p>";
+            document.getElementById('movieGrid').innerHTML = "<p>Searching catalog...</p>";
 
             try {
-                const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}`);
-                const data = await res.json();
+                const targetUrl = `https://h5-api.aoneroom.com/wefeed-h5api-bff/search/suggest?keyword=${encodeURIComponent(query)}&host=moviebox.ph`;
+                const data = await fetchWithProxy(targetUrl);
                 
-                // Read exact MovieBox list structure
-                const items = data.data?.list || data.data?.results || data.data?.items || data.data || [];
-                displayGrid(items);
+                const results = data.data?.list || data.data?.results || data.data?.items || data.data?.subjectList || [];
+                displayGrid(results);
             } catch (err) {
                 console.error(err);
-                document.getElementById('movieGrid').innerHTML = "<p>Search failed! Please try again.</p>";
+                document.getElementById('movieGrid').innerHTML = "<p>Unable to load results. Please try refreshing the page.</p>";
             }
         }
 
@@ -121,8 +137,8 @@
                 const player = document.getElementById('videoPlayer');
                 document.getElementById('playing-title').innerText = title;
 
-                const res = await fetch(`${API_BASE}/detail/${slug}`);
-                const data = await res.json();
+                const targetUrl = `https://h5-api.aoneroom.com/wefeed-h5api-bff/subject/detail?detailPath=${slug}&host=moviebox.ph`;
+                const data = await fetchWithProxy(targetUrl);
 
                 let videoUrl = data.data?.subject?.trailer?.videoAddress?.url;
 
@@ -130,7 +146,7 @@
                     player.src = videoUrl;
                     modal.style.display = "flex";
                 } else {
-                    alert("Is title ke liye trailer stream video available nahi hai.");
+                    alert("Streaming link currently unavailable for this title.");
                 }
             } catch (err) {
                 alert("Error loading video details!");
