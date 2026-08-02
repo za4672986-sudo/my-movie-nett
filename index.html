@@ -175,7 +175,35 @@
         }
 
         // Initialize Home feed on load
-        loadHome();
-    </script>
-</body>
-</html>
+       // Load Default Home Banners
+        async function loadHome() {
+            try {
+                const res = await fetch(`${API_BASE}/home`);
+                const data = await res.json();
+                
+                let items = [];
+                if (data.data) {
+                    // Extract items from operateList or banners
+                    if (data.data.operateList) {
+                        data.data.operateList.forEach(op => {
+                            if (op.bannerList) items.push(...op.bannerList);
+                            if (op.subjectList) items.push(...op.subjectList);
+                        });
+                    } else if (data.data.items) {
+                        items = data.data.items;
+                    }
+                }
+
+                if (items.length === 0) {
+                    // Fallback to auto search if home structure is complex
+                    const searchRes = await fetch(`${API_BASE}/search?q=a`);
+                    const searchData = await searchRes.json();
+                    items = searchData.data?.results || searchData.data?.items || [];
+                }
+
+                displayGrid(items);
+            } catch (err) {
+                console.error(err);
+                document.getElementById('movieGrid').innerHTML = "<p>Error loading content!</p>";
+            }
+        }
