@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, FileResponse
 
 app = FastAPI(
     title="MovieBox API Pro",
-    description="Full Pure REST API for moviebox.ph",
+    description="Full Pure REST API for moviebox.ph — Zero Scraping",
     version="2.1.5"
 )
 
@@ -30,7 +30,13 @@ DEFAULT_HEADERS = {
     "X-Client-Info": '{"timezone":"Asia/Dhaka"}',
     "X-Request-Lang": "en",
     "Accept": "application/json",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
+    "sec-ch-ua": '"Chromium";v="148", "Google Chrome";v="148", "Not/A)Brand";v="99"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"Windows"',
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "cross-site",
 }
 
 async def _get_bearer_token() -> str:
@@ -95,3 +101,7 @@ async def search(q: str = Query(..., description="Search query")):
 async def get_detail(slug: str):
     url = f"{API_BASE}/subject/detail?detailPath={slug}&host=moviebox.ph"
     return await _make_request(url)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
