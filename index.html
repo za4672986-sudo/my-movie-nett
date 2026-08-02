@@ -55,10 +55,10 @@
     </div>
 
     <script>
-        const API_BASE = "https://corsproxy.io/?" + encodeURIComponent("https://h5-api.aoneroom.com/wefeed-h5api-bff");
+        const API_BASE = window.location.origin;
 
         async function loadHome() {
-            searchMovies("a");
+            searchMovies("attack");
         }
 
         async function searchMovies(customQuery = null) {
@@ -71,12 +71,12 @@
             document.getElementById('movieGrid').innerHTML = "<p>Searching...</p>";
 
             try {
-                const targetUrl = `https://h5-api.aoneroom.com/wefeed-h5api-bff/search/suggest?keyword=${encodeURIComponent(query)}&host=moviebox.ph`;
-                const res = await fetch("https://corsproxy.io/?" + encodeURIComponent(targetUrl));
+                const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}`);
                 const data = await res.json();
                 
-                const results = data.data?.list || data.data?.results || data.data?.items || [];
-                displayGrid(results);
+                // Read exact MovieBox list structure
+                const items = data.data?.list || data.data?.results || data.data?.items || data.data || [];
+                displayGrid(items);
             } catch (err) {
                 console.error(err);
                 document.getElementById('movieGrid').innerHTML = "<p>Search failed! Please try again.</p>";
@@ -121,8 +121,7 @@
                 const player = document.getElementById('videoPlayer');
                 document.getElementById('playing-title').innerText = title;
 
-                const targetUrl = `https://h5-api.aoneroom.com/wefeed-h5api-bff/subject/detail?detailPath=${slug}&host=moviebox.ph`;
-                const res = await fetch("https://corsproxy.io/?" + encodeURIComponent(targetUrl));
+                const res = await fetch(`${API_BASE}/detail/${slug}`);
                 const data = await res.json();
 
                 let videoUrl = data.data?.subject?.trailer?.videoAddress?.url;
@@ -131,10 +130,10 @@
                     player.src = videoUrl;
                     modal.style.display = "flex";
                 } else {
-                    alert("Is title ke liye streaming link load nahi ho saka.");
+                    alert("Is title ke liye trailer stream video available nahi hai.");
                 }
             } catch (err) {
-                alert("Error loading video!");
+                alert("Error loading video details!");
             }
         }
 
